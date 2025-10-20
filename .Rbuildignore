@@ -1,2 +1,35 @@
-^localEnrichment\.Rproj$
+# .Rbuildignore — ignore development and RStudio files during build
+
+# RStudio project files
+^.*\.Rproj$
 ^\.Rproj\.user$
+
+# Development folder (scripts, testing, notes)
+^dev$
+
+# Git and GitHub metadata
+^\.git$
+^\.gitignore$
+^\.gitattributes$
+^\.github$
+
+# Temporary or system files
+^\.DS_Store$
+^Thumbs\.db$
+
+# Documentation and reports
+^README\.Rmd$
+^README\.html$
+^README\.md$
+^docs$
+^vignettes$
+
+# Other local artifacts
+^\.env$
+^\.vscode$
+^\.idea$
+
+# Optional: ignore outputs, cache, or results folders if any
+^results$
+^outputs$
+^data-raw$
