@@ -21,3 +21,13 @@ summary(Eset)
 # Convert to list for ORA/QEA functions
 sets_list <- as(Eset, "list")
 str(sets_list)
+
+# Coerce to data.frame
+df <- as.data.frame(Eset)
+
+head(df)
+
+# Convert to list again
+lst <- as(KEGGset, "list")
+length(lst)
+#> number of sets
