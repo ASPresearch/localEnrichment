@@ -1,23 +1,12 @@
 Package: localEnrichment
-Type: Package
 Title: Local Enrichment Analysis Tools for Omics Data
 Version: 0.1.0
-Authors@R: 
-    person("Alex", "Sanchez", email = "alex.sanchez@ub.edu", role = c("aut", "cre"))
-Description: Flexible tools for performing over-representation (ORA)
-    and quantitative enrichment (QSEA) analyses using local mappings.
-Depends: R (>= 4.2)
-Imports:
-    magrittr,
-    methods,
-    readr,
-    stats,
-    utils,
-    purrr,
-    dplyr,
-    tibble,
-    ggplot2,
-    forcats
+Author: Alex Sanchez [aut, cre]
+Maintainer: Alex Sanchez <alex.sanchez@ub.edu>
+Description: Flexible tools for performing over-representation (ORA) and
+    quantitative enrichment (QSEA) analyses using local mappings.
+Depends: R (>= 4.2) 
+Imports: magrittr, methods, readr, stats, utils, purrr, dplyr, tibble, ggplot2, forcats
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
