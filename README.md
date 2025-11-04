@@ -26,7 +26,7 @@ You can install the development version directly from GitHub:
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("aspresearch/localEnrichmentR")
+devtools::install_github("aspresearch/localEnrichment")
 ```
 
 # Quickstart
