@@ -1,6 +1,8 @@
+#' @importFrom utils globalVariables
+utils::globalVariables(c("set_id", "set_name", "feature_ids"))
+
 #' @importFrom methods as setAs
 NULL
-
 
 #' EnrichmentSet Class
 #'
@@ -77,6 +79,10 @@ EnrichmentSet <- function(data, metadata, sep = ";") {
 #' @param description (optional) Description of the mapping
 #' @param sep (optional) Separator for feature_ids; defaults to ";"
 #'
+#' @importFrom dplyr select all_of filter distinct group_by summarise mutate
+#' @importFrom tibble tibble
+#' @importFrom stats setNames
+#'
 #' @return An S4 object of class `EnrichmentSet`
 #' @export
 buildEnrichmentSet <- function(
@@ -90,10 +96,6 @@ buildEnrichmentSet <- function(
     description = NULL,
     sep = ";"
 ) {
-  if (!requireNamespace("dplyr", quietly = TRUE))
-    stop("Package 'dplyr' is required.")
-  library(dplyr)
-
   if (!id_col %in% colnames(data))
     stop(paste("Column", id_col, "not found in data."))
   if (!category_col %in% colnames(data))
@@ -132,129 +134,18 @@ buildEnrichmentSet <- function(
   EnrichmentSet(mapping, metadata, sep = sep)
 }
 
-
-
-#' @rdname EnrichmentSet
-#' @aliases show,EnrichmentSet-method
+#' Validate EnrichmentSet structure
+#'
+#' Checks that an object is a valid `EnrichmentSet` and contains the required columns.
+#' @param Eset An object of class `EnrichmentSet`.
+#' @return Invisibly returns TRUE if valid, otherwise throws an error.
 #' @export
-setMethod("show", "EnrichmentSet", function(object) {
-  md <- object@metadata
-  cat("EnrichmentSet:", md$mapping_name, "\n")
-  cat("  Source:", md$set_source, "\n")
-  cat("  Feature IDs:", md$feature_id_type, "\n")
-  cat("  Number of sets:", nrow(object@data), "\n")
-  cat("  Example set:", object@data$set_name[1], "\n")
-})
-
-#' @rdname EnrichmentSet
-#' @aliases summary,EnrichmentSet-method
-#' @export
-setMethod("summary", "EnrichmentSet", function(object) {
-  cat("EnrichmentSet summary:\n")
-  cat("  Mapping name:", object@metadata$mapping_name, "\n")
-  cat("  Source:", object@metadata$set_source, "\n")
-  cat("  Feature IDs:", object@metadata$feature_id_type, "\n")
-  cat("  Number of sets:", nrow(object@data), "\n")
-  sizes <- lengths(object@data$feature_list)
-  cat("  Mean set size:", mean(sizes), "features\n")
-  cat("  Median set size:", median(sizes), "features\n")
-})
-
-#' @title Coerce EnrichmentSet to list
-#' @description Converts an EnrichmentSet object to a named list of feature vectors,
-#' suitable for enrichment analysis.
-#' @name EnrichmentSet-coercion
-#' @rdname EnrichmentSet
-setAs("EnrichmentSet", "list", function(from) {
-  data <- from@data
-  sets_list <- setNames(
-    lapply(strsplit(data$feature_ids, ";"), trimws),
-    data$set_name
-  )
-  sets_list
-})
-
-#' @title Coerce EnrichmentSet to data.frame
-#' @description Converts an EnrichmentSet object to a long-format data.frame
-#'   with one row per (set_name, feature_id) pair.
-#' @name EnrichmentSet-coercion
-#' @rdname EnrichmentSet
-#' @export
-setAs("EnrichmentSet", "data.frame", function(from) {
-  df <- from@data
-  # Expand feature_ids into one row per element
-  expanded <- do.call(rbind, lapply(seq_len(nrow(df)), function(i) {
-    tibble::tibble(
-      set_id   = df$set_id[i],
-      set_name = df$set_name[i],
-      feature_id = unlist(strsplit(df$feature_ids[i], ";", fixed = TRUE)),
-      stringsAsFactors = FALSE
-    )
-  }))
-
-  # Add metadata columns if desired
-  if (!is.null(from@metadata$set_source)) expanded$source <- from@metadata$set_source
-  if (!is.null(from@metadata$feature_species)) expanded$species <- from@metadata$feature_species
-
-  expanded
-})
-
-#' @export
-as.data.frame.EnrichmentSet <- function(x, ...) {
-  as(x, "data.frame")
-}
-
-# Quick helper to build an EnrichmentSet from a legacy list object
-# (e.g. MetaboAnalyst KEGG/SMPDB data)
-as.EnrichmentSet.list <- function(x, id_type = "HMDB_ID", species = "Homo sapiens") {
-  if (!is.list(x) || !"sets" %in% names(x))
-    stop("Input must be a list with a 'sets' element.")
-  df <- tibble::tibble(
-    set_id = make.unique(names(x$sets)),
-    set_name = names(x$sets),
-    feature_ids = vapply(x$sets, function(v) paste(unique(v), collapse = ";"), character(1))
-  )
-  meta <- list(
-    mapping_name = x$name %||% "UnknownMapping",
-    feature_id_type = id_type,
-    feature_species = species,
-    set_source = x$name %||% "UnknownSource",
-    version = x$version %||% NA,
-    description = x$description %||% NA
-  )
-  EnrichmentSet(df, meta)
-}
-`%||%` <- function(a,b) if(!is.null(a)) a else b
-
-
-#' @title Filter EnrichmentSet by feature IDs
-#' @description Returns a new EnrichmentSet containing only sets that include
-#'   at least one of the provided feature IDs.
-#' @param Eset An object of class `EnrichmentSet`
-#' @param ids Character vector of feature IDs to retain
-#' @return A filtered `EnrichmentSet` object
-#' @export
-filterEnrichmentSet <- function(Eset, ids) {
+validateEnrichmentSet <- function(Eset) {
   stopifnot(inherits(Eset, "EnrichmentSet"))
-  if (missing(ids) || length(ids) == 0)
-    stop("You must provide a non-empty vector of IDs to filter by.")
-
-  sets_list <- as(Eset, "list")
-  sets_filtered <- Filter(function(v) any(v %in% ids), sets_list)
-
-  message(length(sets_filtered), " sets retained out of ", length(sets_list))
-
-  df <- tibble::tibble(
-    set_id = make.unique(names(sets_filtered)),
-    set_name = names(sets_filtered),
-    feature_ids = vapply(
-      sets_filtered,
-      function(v) paste(unique(v), collapse = ";"),
-      character(1)
-    )
-  )
-
-  meta <- Eset@metadata
-  EnrichmentSet(df, meta)
+  required_cols <- c("set_id", "set_name", "feature_ids")
+  if (!all(required_cols %in% colnames(Eset@data))) {
+    stop("Invalid EnrichmentSet: missing columns ",
+         paste(setdiff(required_cols, colnames(Eset@data)), collapse = ", "))
+  }
+  invisible(TRUE)
 }
-

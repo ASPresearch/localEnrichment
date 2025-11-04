@@ -19,10 +19,6 @@
 #'                                set_name = NULL,
 #'                                source = NULL,
 #'                                species = "Homo sapiens") {
-#'   if (!requireNamespace("dplyr", quietly = TRUE))
-#'     stop("Package 'dplyr' is required.")
-#'   library(dplyr)
-#'
 #'   stopifnot(id_col %in% names(data), category_col %in% names(data))
 #'
 #'   df <- data %>%
