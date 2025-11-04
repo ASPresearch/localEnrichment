@@ -1,7 +1,14 @@
 `%||%` <- function(a,b) if(!is.null(a)) a else b
 
-# Quick helper to build an EnrichmentSet from a legacy list object
-# (e.g. MetaboAnalyst KEGG/SMPDB data)
+#' @title Convert a list-style pathway object to EnrichmentSet
+#' @description Converts a list object (like MetaboAnalystR SMPDB/KEGG data)
+#'   into a formal `EnrichmentSet` with standardized slots.
+#' @param x A list with elements `name`, `description`, `version`, and `sets`,
+#'   where `sets` is a named list of character vectors (IDs).
+#' @param id_type Character string describing the type of feature IDs (default = "HMDB_ID").
+#' @param species Species name (default = "Homo sapiens").
+#' @return An object of class \code{EnrichmentSet}.
+#' @export
 as.EnrichmentSet.list <- function(x, id_type = "HMDB_ID", species = "Homo sapiens") {
   if (!is.list(x) || !"sets" %in% names(x))
     stop("Input must be a list with a 'sets' element.")

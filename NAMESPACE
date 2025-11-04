@@ -2,6 +2,7 @@
 
 S3method(as.data.frame,EnrichmentSet)
 export(EnrichmentSet)
+export(as.EnrichmentSet.list)
 export(buildEnrichmentSet)
 export(filterEnrichmentSet)
 export(filter_sets_by_features)
