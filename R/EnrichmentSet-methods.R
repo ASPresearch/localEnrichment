@@ -73,4 +73,26 @@ as.data.frame.EnrichmentSet <- function(x, ...) {
 }
 
 
+#' @title Coerce EnrichmentSet to a condensed metabolite-set table
+#' @name EnrichmentSet_as_MetaboliteSetDataFrame
+#' @description Converts an EnrichmentSet object to a two-column data.frame
+#'   with one row per set and a comma-separated string of metabolite IDs.
+#' @param x An `EnrichmentSet` object.
+#' @param id_sep Separator used to concatenate feature IDs (default = ",").
+#' @return A data.frame with columns `set_name` and `Metabolites`.
+#' @export
+#' @export
+as.MetaboliteSetDataFrame <- function(x, id_sep = ",") {
+  stopifnot(inherits(x, "EnrichmentSet"))
+
+  df <- x@data
+  tibble::tibble(
+    set_name = df$set_name,
+    Metabolites = vapply(
+      strsplit(df$feature_ids, ";", fixed = TRUE),
+      function(v) paste(unique(v), collapse = id_sep),
+      character(1)
+    )
+  )
+}
 
