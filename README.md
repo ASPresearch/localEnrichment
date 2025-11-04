@@ -3,7 +3,7 @@
 
 **Local Enrichment Analysis Tools for Omics Data**
 
-[![R-CMD-check](https://github.com/alexsanchezbio/localEnrichmentR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/alexsanchezbio/localEnrichmentR/actions/workflows/R-CMD-check.yaml)
+[![R-CMD-check](https://github.com/aspresearch/localEnrichmentR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/alexsanchezbio/localEnrichmentR/actions/workflows/R-CMD-check.yaml)
 
 ------------------------------------------------------------------------
 
@@ -26,7 +26,7 @@ You can install the development version directly from GitHub:
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("alexsanchezbio/localEnrichmentR")
+devtools::install_github("aspresearch/localEnrichmentR")
 ```
 
 # Quickstart
