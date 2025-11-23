@@ -46,6 +46,33 @@ setClass(
   }
 )
 
+#' Validate enrichment mapping (low-level)
+#'
+#' Ensures that the mapping table contains required columns and
+#' normalizes the feature_ids column by removing whitespace.
+#'
+#' @param data data.frame with columns set_id, set_name, feature_ids
+#' @param metadata list with mapping metadata
+#'
+#' @return validated and normalized mapping table
+#' @keywords internal
+validateEnrichment <- function(data, metadata) {
+
+  required_cols <- c("set_id", "set_name", "feature_ids")
+  missing <- setdiff(required_cols, colnames(data))
+  if (length(missing) > 0) {
+    stop("Invalid enrichment mapping: missing columns ",
+         paste(missing, collapse = ", "))
+  }
+
+  # normalize feature_ids
+  data$feature_ids <- gsub("\\s+", "", data$feature_ids)
+
+  # return data frame
+  data
+}
+
+
 #' Constructor for EnrichmentSet
 #'
 #' @param data A data.frame containing at least columns set_id, set_name, feature_ids.
@@ -65,30 +92,42 @@ EnrichmentSet <- function(data, metadata, sep = ";") {
   new("EnrichmentSet", metadata = metadata, data = data)
 }
 
-#' @title Build an EnrichmentSet from a mapping table
-#' @description High-level constructor that takes a two-column mapping (ID ↔ Category)
-#'   and metadata, and returns a valid `EnrichmentSet` object.
+#' Build an EnrichmentSet object from a mapping table
 #'
-#' @param data A data.frame containing at least `id_col` and `category_col`
-#' @param id_col Column name with metabolite or feature IDs (e.g., "HMDB")
-#' @param category_col Column name with categories or set names (e.g., "Pathway")
-#' @param set_name (optional) A name for the mapping, used as metadata$mapping_name
-#' @param source (optional) Source database (used as metadata$set_source)
-#' @param species (optional) Species name (used as metadata$feature_species)
-#' @param version (optional) Version string or date
-#' @param description (optional) Description of the mapping
-#' @param sep (optional) Separator for feature_ids; defaults to ";"
+#' High-level constructor for generating an EnrichmentSet from a mapping table.
 #'
-#' @importFrom dplyr select all_of filter distinct group_by summarise mutate
-#' @importFrom tibble tibble
-#' @importFrom stats setNames
+#' @param data A data.frame containing mapping information.
+#' @param id_col Column name containing feature IDs (e.g., HMDB, PubChem).
+#' @param category_col Column name with human-readable set labels (e.g., pathways).
+#' @param set_id_col Optional column with stable set identifiers (e.g., KEGG ID, SMPDB ID).
+#' @param set_name Optional name of the mapping (stored in metadata).
+#' @param source Optional source database name.
+#' @param species Species name, e.g. "Homo sapiens".
+#' @param version Optional version string or date.
+#' @param description Optional description of the enrichment mapping.
+#' @param sep Separator used to collapse multiple features in `feature_ids`.
 #'
-#' @return An S4 object of class `EnrichmentSet`
+#' @return An object of class \code{EnrichmentSet}.
 #' @export
+#'
+#' @examples
+#' df <- data.frame(
+#'   HMDB = c("H1","H2","H3"),
+#'   Pathway = c("P1","P1","P2"),
+#'   PathwayID = c("PW1","PW1","PW2")
+#' )
+#'
+#' eset <- buildEnrichmentSet(
+#'   data = df,
+#'   id_col = "HMDB",
+#'   category_col = "Pathway",
+#'   set_id_col = "PathwayID"
+#' )
 buildEnrichmentSet <- function(
     data,
     id_col,
     category_col,
+    set_id_col = NULL,
     set_name = NULL,
     source = NULL,
     species = "Homo sapiens",
@@ -96,31 +135,54 @@ buildEnrichmentSet <- function(
     description = NULL,
     sep = ";"
 ) {
-  if (!id_col %in% colnames(data))
-    stop(paste("Column", id_col, "not found in data."))
-  if (!category_col %in% colnames(data))
-    stop(paste("Column", category_col, "not found in data."))
+  stopifnot(id_col %in% colnames(data))
+  stopifnot(category_col %in% colnames(data))
+  if (!is.null(set_id_col)) stopifnot(set_id_col %in% colnames(data))
 
-  # --- Clean data and remove missing values ----------------------------
+  # 1) Netejar i deduplicar
   df <- data %>%
-    select(all_of(c(id_col, category_col))) %>%
-    filter(!is.na(.data[[id_col]]), !is.na(.data[[category_col]])) %>%
-    distinct()
+    dplyr::filter(
+      !is.na(.data[[id_col]]),
+      !is.na(.data[[category_col]])
+    )
 
-  # --- Build canonical data.frame: one row per category ----------------
-  mapping <- df %>%
-    group_by(.data[[category_col]]) %>%
-    summarise(
-      feature_ids = paste(unique(.data[[id_col]]), collapse = sep),
-      .groups = "drop"
-    ) %>%
-    mutate(
-      set_id = make.unique(as.character(.data[[category_col]])),
-      set_name = .data[[category_col]]
-    ) %>%
-    select(set_id, set_name, feature_ids)
+  if (!is.null(set_id_col)) {
+    df <- df %>%
+      dplyr::filter(!is.na(.data[[set_id_col]])) %>%
+      dplyr::distinct(.data[[id_col]], .data[[category_col]], .data[[set_id_col]])
+  } else {
+    df <- df %>%
+      dplyr::distinct(.data[[id_col]], .data[[category_col]])
+  }
 
-  # --- Build metadata list --------------------------------------------
+  # 2) Construir mapping: set_id, set_name, feature_ids
+  if (is.null(set_id_col)) {
+    mapping <- df %>%
+      dplyr::group_by(.data[[category_col]]) %>%
+      dplyr::summarise(
+        feature_ids = paste(unique(.data[[id_col]]), collapse = sep),
+        .groups = "drop"
+      ) %>%
+      dplyr::mutate(
+        set_id   = make.unique(as.character(.data[[category_col]])),
+        set_name = as.character(.data[[category_col]])
+      ) %>%
+      dplyr::select(set_id, set_name, feature_ids)
+  } else {
+    mapping <- df %>%
+      dplyr::group_by(.data[[set_id_col]], .data[[category_col]]) %>%
+      dplyr::summarise(
+        feature_ids = paste(unique(.data[[id_col]]), collapse = sep),
+        .groups = "drop"
+      ) %>%
+      dplyr::mutate(
+        set_id   = as.character(.data[[set_id_col]]),
+        set_name = as.character(.data[[category_col]])
+      ) %>%
+      dplyr::select(set_id, set_name, feature_ids)
+  }
+
+  # 3) Metadata
   metadata <- list(
     mapping_name = ifelse(is.null(set_name), category_col, set_name),
     feature_id_type = id_col,
@@ -130,8 +192,16 @@ buildEnrichmentSet <- function(
     description = description
   )
 
-  # --- Call the low-level constructor ---------------------------------
-  EnrichmentSet(mapping, metadata, sep = sep)
+  # 4) Validació del mapping (funció antiga del paquet)
+  mapping <- validateEnrichment(mapping, metadata)
+
+  # 5) Crear objecte S4
+  Eset <- EnrichmentSet(mapping, metadata, sep = sep)
+
+  # 6) Validació de l’objecte S4 a nivell alt
+  validateEnrichmentSet(Eset)
+
+  return(Eset)
 }
 
 #' Validate EnrichmentSet structure
@@ -149,3 +219,4 @@ validateEnrichmentSet <- function(Eset) {
   }
   invisible(TRUE)
 }
+

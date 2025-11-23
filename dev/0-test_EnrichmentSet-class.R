@@ -28,6 +28,6 @@ df <- as.data.frame(Eset)
 head(df)
 
 # Convert to list again
-lst <- as(KEGGset, "list")
+lst <- as(EnrichmentSet, "list")
 length(lst)
 #> number of sets

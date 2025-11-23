@@ -20,6 +20,7 @@ sets <- data.frame(
 
 Eset <- EnrichmentSet(sets, meta)
 
+
 # --- 2. Scores de les característiques -------------------------------------
 
 scores <- c(
@@ -34,10 +35,20 @@ scores <- c(
 # --- 3. Funció auxiliar per generar el perfil ------------------------------
 
 qea_profile <- function(eset, scores, set_name) {
-  if (!inherits(eset, "EnrichmentSet")) stop("Input must be an EnrichmentSet.")
-  sets_list <- as(eset, "list")
-  if (!(set_name %in% names(sets_list)))
-    stop("Specified set_name not found in EnrichmentSet.")
+  if (!inherits(eset, "EnrichmentSet"))
+    stop("Input must be an EnrichmentSet.")
+
+  sets_list <- as(eset, "list")   # clau: set_id
+
+  # 👉 permetre noms humans
+  if (!(set_name %in% names(sets_list))) {
+    lookup <- eset@data
+    if (set_name %in% lookup$set_name) {
+      set_name <- lookup$set_id[match(set_name, lookup$set_name)]
+    } else {
+      stop("Specified set_name not found in EnrichmentSet.")
+    }
+  }
 
   hits <- sets_list[[set_name]]
 
@@ -45,11 +56,12 @@ qea_profile <- function(eset, scores, set_name) {
     feature = names(sort(scores, decreasing = TRUE)),
     score = sort(scores, decreasing = TRUE)
   )
-  df$hit <- ifelse(df$feature %in% hits, 1, 0)
+  df$hit <- df$feature %in% hits
 
   Nh <- sum(df$hit)
   N <- nrow(df)
   if (Nh == 0) stop("No hits for this set in scores.")
+
   running_score <- cumsum(df$hit / Nh - (!df$hit) / (N - Nh))
 
   data.frame(
@@ -59,26 +71,22 @@ qea_profile <- function(eset, scores, set_name) {
   )
 }
 
-# --- 4. Generar perfil i representar ---------------------------------------
-
-profile_df <- qea_profile(Eset, scores, set_name = "Amino Acids")
-
-p <- plot_qsea_profile(
-  profile_df,
-  set_name = "Amino Acids",
-  highlight = "#4E79A7",
-  rug_color = "black"
-)
-
-p
 
 # --- 5 SImplifiquem l'Eset
 
 Eset_small <- filter_sets_by_features(Eset, names(scores))
-res_qea <- qea_test(Eset_small, scores, min_set_size = 2, return_profiles = TRUE, nperm = 1000)
 
-# un set concret
-plot_qea_profile(res_qea, sets = "Amino Acids", show = "selected", facet = TRUE)
+# 2. QEA complet amb perfils
+res_qea <- qea_test(Eset_small, scores,
+                    min_set_size = 2,
+                    return_profiles = TRUE,
+                    nperm = 1000)
 
-# tots els significatius
-plot_qea_profile(res_qea, show = "significant", p_cutoff = 0.25)  # ajusta el llindar per l’exemple
+# 3. Plot per un set concret (per ID)
+plot_qea_profile(res_qea, sets = "CL001")
+
+# O per nom humà:
+plot_qea_profile(res_qea, sets = "Amino Acids")
+
+# 4. Tots els significatius
+plot_qea_profile(res_qea, show = "significant", p_cutoff = 0.25)

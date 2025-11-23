@@ -1,22 +1,3 @@
-#' Quantitative Enrichment Analysis (QEA / GSEA-like)
-#'
-#' Performs a ranked enrichment analysis for all sets in an EnrichmentSet.
-#'
-#' @param eset An \code{EnrichmentSet} object.
-#' @param scores Named numeric vector of feature scores (names = feature IDs).
-#' @param nperm Number of permutations for p-value estimation (default = 1000).
-#' @param p_adjust Method for multiple testing correction (default = "BH").
-#' @param min_set_size Minimum number of features per set to test (default = 3).
-#' @param max_set_size Maximum number of features per set (default = 500).
-#' @param return_profiles Logical; if TRUE, returns running-score profiles per set.
-#' @param quiet Logical; suppress progress messages.
-#'
-#' @return A list of class \code{"QEAResult"} with:
-#'   \itemize{
-#'     \item table: tibble with set_name, n_in_set, ES, p_value, p_adj, direction
-#'     \item profiles (optional): list of data.frames (set_name, position, running_score, hit)
-#'   }
-#' @export
 qea_test <- function(eset, scores,
                      nperm = 1000,
                      p_adjust = "BH",
@@ -50,8 +31,8 @@ qea_test <- function(eset, scores,
   tested <- 0L
   skipped <- 0L
 
-  for (set_name in names(sets_list)) {
-    set_feats <- intersect(sets_list[[set_name]], all_features)
+  for (set_id in names(sets_list)) {
+    set_feats <- intersect(sets_list[[set_id]], all_features)
     Nh <- length(set_feats)
     if (Nh == 0L) { skipped <- skipped + 1L; next }
     if (Nh < min_set_size || Nh > max_set_size) { skipped <- skipped + 1L; next }
@@ -64,22 +45,29 @@ qea_test <- function(eset, scores,
     ES <- obs$ES
     direction <- ifelse(ES >= 0, "positive", "negative")
 
-    # Permutations for empirical p-value
+    # ---- Permutacions (codi original restaurat) --------------------------
     if (nperm > 0) {
-      perm_ES <- replicate(nperm, {
-        # permutar les posicions dels hits dins l’univers ranquejat
-        idx_perm <- sample.int(N, Nh, replace = FALSE)
-        es_profile(idx_perm, N, Nh)$ES
-      })
-      p_value <- if (ES >= 0) mean(perm_ES >= ES) else mean(perm_ES <= ES)
-      # assegura p > 0
-      p_value <- max(p_value, 1 / (nperm + 1))
+      perm_ES <- numeric(nperm)
+      for (i in seq_len(nperm)) {
+        perm_idx <- sample.int(N, Nh)
+        perm_obs <- es_profile(perm_idx, N, Nh)
+        perm_ES[i] <- perm_obs$ES
+      }
+
+      # p-values segons direcció
+      if (direction == "positive") {
+        p_value <- mean(perm_ES >= ES)
+      } else {
+        p_value <- mean(perm_ES <= ES)
+      }
+
     } else {
       p_value <- NA_real_
     }
+    # ----------------------------------------------------------------------
 
-    results[[set_name]] <- data.frame(
-      set_name = set_name,
+    results[[set_id]] <- data.frame(
+      set_id = set_id,
       n_in_set = Nh,
       ES = ES,
       direction = direction,
@@ -87,8 +75,8 @@ qea_test <- function(eset, scores,
     )
 
     if (return_profiles) {
-      profiles[[set_name]] <- data.frame(
-        set_name = set_name,
+      profiles[[set_id]] <- data.frame(
+        set_id = set_id,
         position = seq_len(N),
         running_score = obs$running_score,
         hit = obs$hits
@@ -99,8 +87,16 @@ qea_test <- function(eset, scores,
   if (length(results) == 0)
     stop("No sets had overlapping features or met size constraints.")
 
-  res_table <- dplyr::bind_rows(results) |>
-    dplyr::mutate(p_adj = p.adjust(p_value, method = p_adjust)) |>
+  res_table <- dplyr::bind_rows(results) %>%
+    dplyr::mutate(p_adj = p.adjust(p_value, method = p_adjust))
+
+  # Afegim set_name humà
+  set_info <- eset@data %>%
+    dplyr::distinct(.data$set_id, .data$set_name)
+
+  res_table <- res_table %>%
+    dplyr::left_join(set_info, by = "set_id") %>%
+    dplyr::relocate(set_id, set_name, .before = n_in_set) %>%
     dplyr::arrange(p_value)
 
   if (!quiet) {
@@ -110,7 +106,19 @@ qea_test <- function(eset, scores,
   }
 
   out <- list(table = res_table)
-  if (return_profiles) out$profiles <- profiles
+  if (return_profiles) {
+    # també afegim set_name als perfils
+    set_info_named <- set_info$set_name
+    names(set_info_named) <- set_info$set_id
+    profiles <- lapply(names(profiles), function(sid) {
+      df <- profiles[[sid]]
+      df$set_name <- set_info_named[[sid]]
+      df
+    })
+    names(profiles) <- names(results)
+    out$profiles <- profiles
+  }
+
   class(out) <- "QEAResult"
   out
 }

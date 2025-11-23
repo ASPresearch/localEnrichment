@@ -32,11 +32,12 @@ setMethod("summary", "EnrichmentSet", function(object) {
 #' suitable for enrichment analysis.
 setAs("EnrichmentSet", "list", function(from) {
   data <- from@data
-  setNames(
-    lapply(strsplit(data$feature_ids, ";"), trimws),
-    data$set_name
-  )
+  sets <- lapply(strsplit(data$feature_ids, ";", fixed = TRUE), trimws)
+  # clau interna = ID estable
+  names(sets) <- data$set_id
+  sets
 })
+
 
 #' @title Coerce EnrichmentSet to data.frame
 #' @name EnrichmentSet_as_data_frame

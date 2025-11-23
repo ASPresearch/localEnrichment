@@ -81,21 +81,17 @@ ora_test <- function(eset, selected,
   if (!quiet) message("Background features: ", N, " | Selected: ", K)
 
   #--- 2. Iterate over sets --------------------------------------------------
-  results <- purrr::map_dfr(names(mapping), function(sname) {
+  results <- purrr::map_dfr(names(mapping), function(sid) {
 
-    feats <- unique(mapping[[sname]])
+    feats <- unique(mapping[[sid]])
     feats <- feats[feats %in% background]
-    m <- length(feats)                  # total features in set
+    m <- length(feats)
     if (m < min_set_size || m > max_set_size) return(NULL)
 
     overlap <- intersect(selected, feats)
-    k <- length(overlap)                # selected features in set
+    k <- length(overlap)
     if (k == 0) return(NULL)
 
-    # contingency table
-    #          in set   not in set
-    # selected   k        K - k
-    # others     m - k    N - m - K + k
     if (test == "fisher") {
       p <- fisher.test(matrix(c(k, m - k, K - k, N - m - K + k), nrow = 2))$p.value
     } else if (test == "hypergeom") {
@@ -105,7 +101,7 @@ ora_test <- function(eset, selected,
     }
 
     tibble::tibble(
-      set_name = sname,
+      set_id = sid,
       n_selected_in_set = k,
       n_in_set = m,
       p_value = p,
@@ -113,18 +109,23 @@ ora_test <- function(eset, selected,
     )
   })
 
-  #--- 3. Post-processing ----------------------------------------------------
   if (nrow(results) == 0) {
     warning("No sets passed the size thresholds or had overlaps.")
     return(results)
   }
 
-  results <- results |>
+  # Afegim el set_name "en cristià" des de l'EnrichmentSet
+  set_info <- eset@data %>%
+    dplyr::distinct(.data$set_id, .data$set_name)
+
+  results <- results %>%
+    dplyr::left_join(set_info, by = "set_id") %>%
+    dplyr::relocate(set_id, set_name, .before = n_selected_in_set) %>%
     dplyr::mutate(
       p_adj = p.adjust(p_value, method = p_adjust),
       fold_enrichment = (n_selected_in_set / length(selected)) /
         (n_in_set / length(background))
-    ) |>
+    ) %>%
     dplyr::arrange(p_value)
 
   attr(results, "metadata") <- eset@metadata

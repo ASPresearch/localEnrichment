@@ -2,12 +2,13 @@
 % Please edit documentation in R/EnrichmentSet-class.R
 \name{buildEnrichmentSet}
 \alias{buildEnrichmentSet}
-\title{Build an EnrichmentSet from a mapping table}
+\title{Build an EnrichmentSet object from a mapping table}
 \usage{
 buildEnrichmentSet(
   data,
   id_col,
   category_col,
+  set_id_col = NULL,
   set_name = NULL,
   source = NULL,
   species = "Homo sapiens",
@@ -17,28 +18,43 @@ buildEnrichmentSet(
 )
 }
 \arguments{
-\item{data}{A data.frame containing at least \code{id_col} and \code{category_col}}
+\item{data}{A data.frame containing mapping information.}
 
-\item{id_col}{Column name with metabolite or feature IDs (e.g., "HMDB")}
+\item{id_col}{Column name containing feature IDs (e.g., HMDB, PubChem).}
 
-\item{category_col}{Column name with categories or set names (e.g., "Pathway")}
+\item{category_col}{Column name with human-readable set labels (e.g., pathways).}
 
-\item{set_name}{(optional) A name for the mapping, used as metadata$mapping_name}
+\item{set_id_col}{Optional column with stable set identifiers (e.g., KEGG ID, SMPDB ID).}
 
-\item{source}{(optional) Source database (used as metadata$set_source)}
+\item{set_name}{Optional name of the mapping (stored in metadata).}
 
-\item{species}{(optional) Species name (used as metadata$feature_species)}
+\item{source}{Optional source database name.}
 
-\item{version}{(optional) Version string or date}
+\item{species}{Species name, e.g. "Homo sapiens".}
 
-\item{description}{(optional) Description of the mapping}
+\item{version}{Optional version string or date.}
 
-\item{sep}{(optional) Separator for feature_ids; defaults to ";"}
+\item{description}{Optional description of the enrichment mapping.}
+
+\item{sep}{Separator used to collapse multiple features in \code{feature_ids}.}
 }
 \value{
-An S4 object of class \code{EnrichmentSet}
+An object of class \code{EnrichmentSet}.
 }
 \description{
-High-level constructor that takes a two-column mapping (ID ↔ Category)
-and metadata, and returns a valid \code{EnrichmentSet} object.
+High-level constructor for generating an EnrichmentSet from a mapping table.
+}
+\examples{
+df <- data.frame(
+  HMDB = c("H1","H2","H3"),
+  Pathway = c("P1","P1","P2"),
+  PathwayID = c("PW1","PW1","PW2")
+)
+
+eset <- buildEnrichmentSet(
+  data = df,
+  id_col = "HMDB",
+  category_col = "Pathway",
+  set_id_col = "PathwayID"
+)
 }
