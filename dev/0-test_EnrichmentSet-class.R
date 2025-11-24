@@ -31,3 +31,10 @@ head(df)
 lst <- as(EnrichmentSet, "list")
 length(lst)
 #> number of sets
+
+# Coerce into MetaboliteSet
+# There are three possible outcomes for pathway names
+
+as.MetaboliteSetDataFrame(Eset)
+as.MetaboliteSetDataFrame(Eset, id_type ="id")
+as.MetaboliteSetDataFrame(Eset, id_type ="both")

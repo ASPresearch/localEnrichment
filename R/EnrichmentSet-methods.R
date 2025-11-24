@@ -76,24 +76,47 @@ as.data.frame.EnrichmentSet <- function(x, ...) {
 
 #' @title Coerce EnrichmentSet to a condensed metabolite-set table
 #' @name EnrichmentSet_as_MetaboliteSetDataFrame
-#' @description Converts an EnrichmentSet object to a two-column data.frame
-#'   with one row per set and a comma-separated string of metabolite IDs.
+#' @description Converts an EnrichmentSet object to a two- or three-column
+#' data.frame with one row per set and a comma-separated string of metabolites.
 #' @param x An `EnrichmentSet` object.
-#' @param id_sep Separator used to concatenate feature IDs (default = ",").
-#' @return A data.frame with columns `set_name` and `Metabolites`.
+#' @param id_type Which identifier to include?
+#'   One of: "name" (default), "id", or "both".
+#' @param id_sep Separator used to concatenate metabolite IDs (default = ",").
+#' @return A tibble with columns set_name / set_id and Metabolites.
 #' @export
-#' @export
-as.MetaboliteSetDataFrame <- function(x, id_sep = ",") {
+as.MetaboliteSetDataFrame <- function(x,
+                                      id_type = c("name", "id", "both"),
+                                      id_sep = ",") {
+
   stopifnot(inherits(x, "EnrichmentSet"))
+  id_type <- match.arg(id_type)
 
   df <- x@data
-  tibble::tibble(
-    set_name = df$set_name,
-    Metabolites = vapply(
-      strsplit(df$feature_ids, ";", fixed = TRUE),
-      function(v) paste(unique(v), collapse = id_sep),
-      character(1)
-    )
+
+  # Build metabolite column
+  metabolites <- vapply(
+    strsplit(df$feature_ids, ";", fixed = TRUE),
+    function(v) paste(unique(v), collapse = id_sep),
+    character(1)
   )
+
+  # Build output depending on id_type
+  out <- dplyr::tibble(
+    Metabolites = metabolites
+  )
+
+  if (id_type %in% c("name", "both")) {
+    out$set_name <- df$set_name
+  }
+
+  if (id_type %in% c("id", "both")) {
+    out$set_id <- df$set_id
+  }
+
+  # Reorder columns
+  out <- dplyr::relocate(out, dplyr::starts_with("set_"), Metabolites)
+
+  out
 }
+
 

@@ -5,17 +5,20 @@
 \alias{as.MetaboliteSetDataFrame}
 \title{Coerce EnrichmentSet to a condensed metabolite-set table}
 \usage{
-as.MetaboliteSetDataFrame(x, id_sep = ",")
+as.MetaboliteSetDataFrame(x, id_type = c("name", "id", "both"), id_sep = ",")
 }
 \arguments{
 \item{x}{An \code{EnrichmentSet} object.}
 
-\item{id_sep}{Separator used to concatenate feature IDs (default = ",").}
+\item{id_type}{Which identifier to include?
+One of: "name" (default), "id", or "both".}
+
+\item{id_sep}{Separator used to concatenate metabolite IDs (default = ",").}
 }
 \value{
-A data.frame with columns \code{set_name} and \code{Metabolites}.
+A tibble with columns set_name / set_id and Metabolites.
 }
 \description{
-Converts an EnrichmentSet object to a two-column data.frame
-with one row per set and a comma-separated string of metabolite IDs.
+Converts an EnrichmentSet object to a two- or three-column
+data.frame with one row per set and a comma-separated string of metabolites.
 }

@@ -3,5 +3,6 @@ utils::globalVariables(c(
   "running_score",
   "hit",
   "set_id",
-  "set_name"
+  "set_name",
+  "Metabolites"
 ))
