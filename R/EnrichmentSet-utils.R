@@ -37,26 +37,37 @@ as.EnrichmentSet.list <- function(x, id_type = "HMDB_ID", species = "Homo sapien
 #' @return A filtered `EnrichmentSet` object
 #' @export
 filterEnrichmentSet <- function(Eset, ids) {
+
   stopifnot(inherits(Eset, "EnrichmentSet"))
   if (missing(ids) || length(ids) == 0)
     stop("You must provide a non-empty vector of IDs to filter by.")
 
+  # Extract sets as named list (names = set_id)
   sets_list <- as(Eset, "list")
-  sets_filtered <- Filter(function(v) any(v %in% ids), sets_list)
-  sets_filtered <- lapply(sets_filtered, function(v) intersect(v, ids))
+  original_df <- Eset@data
+
+  # Filter sets containing at least one target ID
+  retained <- names(sets_list)[vapply(sets_list, function(v) any(v %in% ids), logical(1))]
+  sets_filtered <- lapply(sets_list[retained], function(v) intersect(v, ids))
 
   message(length(sets_filtered), " sets retained out of ", length(sets_list))
 
+  # Recover the correct set_name for each set_id
+  matched_names <- original_df$set_name[match(retained, original_df$set_id)]
+
+  # Build final dataframe
   df <- tibble::tibble(
-    set_id = make.unique(names(sets_filtered)),
-    set_name = names(sets_filtered),
+    set_id   = retained,
+    set_name = matched_names,
     feature_ids = vapply(
       sets_filtered,
       function(v) paste(unique(v), collapse = ";"),
       character(1)
-    )
+    ),
+    feature_list = sets_filtered
   )
 
   EnrichmentSet(df, Eset@metadata)
 }
+
 
