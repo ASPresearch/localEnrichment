@@ -119,4 +119,3 @@ as.MetaboliteSetDataFrame <- function(x,
   out
 }
 
-

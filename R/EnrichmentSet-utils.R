@@ -42,32 +42,26 @@ filterEnrichmentSet <- function(Eset, ids) {
   if (missing(ids) || length(ids) == 0)
     stop("You must provide a non-empty vector of IDs to filter by.")
 
-  # Extract sets as named list (names = set_id)
-  sets_list <- as(Eset, "list")
-  original_df <- Eset@data
+  df <- Eset@data
 
-  # Filter sets containing at least one target ID
-  retained <- names(sets_list)[vapply(sets_list, function(v) any(v %in% ids), logical(1))]
-  sets_filtered <- lapply(sets_list[retained], function(v) intersect(v, ids))
+  # Ens quedem els sets on hi ha coincidències
+  keep <- vapply(df$feature_list, function(v) any(v %in% ids), logical(1))
+  df2 <- df[keep, ]
 
-  message(length(sets_filtered), " sets retained out of ", length(sets_list))
+  message(sum(keep), " sets retained out of ", nrow(df))
 
-  # Recover the correct set_name for each set_id
-  matched_names <- original_df$set_name[match(retained, original_df$set_id)]
+  # Capar els feature_list al conjunt d'interès
+  df2$feature_list <- lapply(df2$feature_list, function(v) intersect(v, ids))
 
-  # Build final dataframe
-  df <- tibble::tibble(
-    set_id   = retained,
-    set_name = matched_names,
-    feature_ids = vapply(
-      sets_filtered,
-      function(v) paste(unique(v), collapse = ";"),
-      character(1)
-    ),
-    feature_list = sets_filtered
+  # Regenerar feature_ids
+  df2$feature_ids <- vapply(
+    df2$feature_list,
+    function(v) paste(unique(v), collapse = ";"),
+    character(1)
   )
 
-  EnrichmentSet(df, Eset@metadata)
+  EnrichmentSet(df2, Eset@metadata)
 }
+
 
 

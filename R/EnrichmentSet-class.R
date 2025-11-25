@@ -82,15 +82,34 @@ validateEnrichment <- function(data, metadata) {
 #' @return An object of class EnrichmentSet.
 #' @export
 EnrichmentSet <- function(data, metadata, sep = ";") {
+
   required_cols <- c("set_id", "set_name", "feature_ids")
   missing <- setdiff(required_cols, colnames(data))
   if (length(missing) > 0) {
     stop("Missing required columns: ", paste(missing, collapse = ", "))
   }
+
+  # Normalize feature_ids (remove extra spaces, fix separators)
   data$feature_ids <- gsub("\\s+", "", data$feature_ids)
-  data$feature_list <- strsplit(data$feature_ids, sep)
+  data$feature_ids <- gsub(paste0(sep, "$"), "", data$feature_ids)  # remove trailing sep
+
+  # Build feature_list (primary internal structure)
+  data$feature_list <- lapply(strsplit(data$feature_ids, sep, fixed = TRUE), function(v) {
+    v <- trimws(v)          # remove whitespace
+    v <- v[v != ""]         # remove empty entries
+    v <- unique(v)          # ensure uniqueness
+    v
+  })
+
+  # Ensure set_id is unique
+  if (anyDuplicated(data$set_id)) {
+    warning("Duplicated set_id detected applying make.unique().")
+    data$set_id <- make.unique(data$set_id)
+  }
+
   new("EnrichmentSet", metadata = metadata, data = data)
 }
+
 
 #' Build an EnrichmentSet object from a mapping table
 #'
@@ -192,13 +211,13 @@ buildEnrichmentSet <- function(
     description = description
   )
 
-  # 4) Validació del mapping (funció antiga del paquet)
+  # 4) Validacio del mapping (funcio antiga del paquet)
   mapping <- validateEnrichment(mapping, metadata)
 
   # 5) Crear objecte S4
   Eset <- EnrichmentSet(mapping, metadata, sep = sep)
 
-  # 6) Validació de l’objecte S4 a nivell alt
+  # 6) Validacio de l’objecte S4 a nivell alt
   validateEnrichmentSet(Eset)
 
   return(Eset)
