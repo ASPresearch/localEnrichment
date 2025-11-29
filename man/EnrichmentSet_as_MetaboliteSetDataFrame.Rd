@@ -5,7 +5,7 @@
 \alias{as.MetaboliteSetDataFrame}
 \title{Coerce EnrichmentSet to a condensed metabolite-set table}
 \usage{
-as.MetaboliteSetDataFrame(x, id_type = c("name", "id", "both"), id_sep = ",")
+as.MetaboliteSetDataFrame(x, id_type = c("name", "id", "both"), id_sep = NULL)
 }
 \arguments{
 \item{x}{An \code{EnrichmentSet} object.}
@@ -13,12 +13,17 @@ as.MetaboliteSetDataFrame(x, id_type = c("name", "id", "both"), id_sep = ",")
 \item{id_type}{Which identifier to include?
 One of: "name" (default), "id", or "both".}
 
-\item{id_sep}{Separator used to concatenate metabolite IDs (default = ",").}
+\item{id_sep}{Separator used to concatenate metabolite IDs.
+If NULL (default), the function uses the separator already present
+in \code{feature_ids} (either ";" or ","). If not NULL, it is used only
+as output separator, preserving the detected input separator.}
 }
 \value{
 A tibble with columns set_name / set_id and Metabolites.
 }
 \description{
 Converts an EnrichmentSet object to a two- or three-column
-data.frame with one row per set and a comma-separated string of metabolites.
+data.frame with one row per set and a concatenated string of metabolites.
+If \code{id_sep} is NULL, the output separator is automatically set to match
+the one used in \code{feature_ids}.
 }

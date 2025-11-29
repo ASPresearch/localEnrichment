@@ -28,7 +28,7 @@ df <- as.data.frame(Eset)
 head(df)
 
 # Convert to list again
-lst <- as(EnrichmentSet, "list")
+lst <- as(Eset, "list")
 length(lst)
 #> number of sets
 
@@ -38,3 +38,25 @@ length(lst)
 as.MetaboliteSetDataFrame(Eset)
 as.MetaboliteSetDataFrame(Eset, id_type ="id")
 as.MetaboliteSetDataFrame(Eset, id_type ="both")
+
+# Test separator character
+
+df <- data.frame(
+  set_id = c("A", "B"),
+  set_name = c("PathA", "PathB"),
+  feature_ids = c("M1;M2;M3", "M4;M5")
+)
+meta <- list(mapping_name="Test", feature_id_type="HMDB", feature_species="Homo sapiens")
+Eset <- EnrichmentSet(df, meta)
+
+as.MetaboliteSetDataFrame(Eset, id_sep = NULL)
+# → hauria de donar:
+# set_name  Metabolites
+# PathA     M1;M2;M3
+# PathB     M4;M5
+
+as.MetaboliteSetDataFrame(Eset, id_sep = ",")
+# → hauria de donar:
+# set_name  Metabolites
+# PathA     M1,M2,M3
+# PathB     M4,M5

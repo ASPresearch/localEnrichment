@@ -61,61 +61,68 @@ setAs("EnrichmentSet", "data.frame", function(from) {
 
 setMethod("as.data.frame", "EnrichmentSet", function(x, ...) as(x, "data.frame"))
 
-#' @title Coerce EnrichmentSet to data.frame (S3 wrapper)
-#' @description Wrapper that allows `as.data.frame()` to be called directly
-#' on `EnrichmentSet` objects.
-#' @param x An `EnrichmentSet` object.
-#' @param ... Additional arguments (ignored).
-#' @return A data frame with one row per (set_name, feature_id) pair.
-#' @method as.data.frame EnrichmentSet
-#' @export
-as.data.frame.EnrichmentSet <- function(x, ...) {
-  as(x, "data.frame")
-}
-
-
 #' @title Coerce EnrichmentSet to a condensed metabolite-set table
 #' @name EnrichmentSet_as_MetaboliteSetDataFrame
 #' @description Converts an EnrichmentSet object to a two- or three-column
-#' data.frame with one row per set and a comma-separated string of metabolites.
+#' data.frame with one row per set and a concatenated string of metabolites.
+#' If `id_sep` is NULL, the output separator is automatically set to match
+#' the one used in `feature_ids`.
+#'
 #' @param x An `EnrichmentSet` object.
 #' @param id_type Which identifier to include?
 #'   One of: "name" (default), "id", or "both".
-#' @param id_sep Separator used to concatenate metabolite IDs (default = ",").
+#' @param id_sep Separator used to concatenate metabolite IDs.
+#'   If NULL (default), the function uses the separator already present
+#'   in `feature_ids` (either ";" or ","). If not NULL, it is used only
+#'   as output separator, preserving the detected input separator.
 #' @return A tibble with columns set_name / set_id and Metabolites.
 #' @export
 as.MetaboliteSetDataFrame <- function(x,
                                       id_type = c("name", "id", "both"),
-                                      id_sep = ",") {
+                                      id_sep = NULL) {
 
   stopifnot(inherits(x, "EnrichmentSet"))
   id_type <- match.arg(id_type)
 
   df <- x@data
 
-  # Build metabolite column
+  ## --- Detectar separador d'ENTRADA (sep_in) -------------------------
+  # Agafem el primer feature_ids no buit
+  sample_str <- df$feature_ids[which(nzchar(df$feature_ids))[1]]
+
+  if (grepl(";", sample_str, fixed = TRUE)) {
+    sep_in <- ";"
+  } else if (grepl(",", sample_str, fixed = TRUE)) {
+    sep_in <- ","
+  } else {
+    sep_in <- ";"  # fallback raonable
+  }
+
+  ## --- Decidir separador de SORTIDA (sep_out) ------------------------
+  if (is.null(id_sep)) {
+    sep_out <- sep_in          # conservar el que ja porta l'EnrichmentSet
+  } else {
+    sep_out <- id_sep          # forçar-ne un altre ("," o ";")
+  }
+
+  ## --- Construir la columna de metabòlits ----------------------------
   metabolites <- vapply(
-    strsplit(df$feature_ids, ";", fixed = TRUE),
-    function(v) paste(unique(v), collapse = id_sep),
+    strsplit(df$feature_ids, split = sep_in, fixed = TRUE),
+    function(v) paste(unique(trimws(v)), collapse = sep_out),
     character(1)
   )
 
-  # Build output depending on id_type
-  out <- dplyr::tibble(
-    Metabolites = metabolites
-  )
+  ## --- Construir sortida segons id_type ------------------------------
+  out <- dplyr::tibble(Metabolites = metabolites)
 
   if (id_type %in% c("name", "both")) {
     out$set_name <- df$set_name
   }
-
   if (id_type %in% c("id", "both")) {
     out$set_id <- df$set_id
   }
 
-  # Reorder columns
   out <- dplyr::relocate(out, dplyr::starts_with("set_"), Metabolites)
 
   out
 }
-
